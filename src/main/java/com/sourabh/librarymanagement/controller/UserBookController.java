@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/user/books")
 public class UserBookController {
@@ -112,6 +114,39 @@ public class UserBookController {
         mongoTemplate.save(user);
 
         return ResponseEntity.ok("Book returned successfully");
+    }
+
+    @GetMapping("/borrowed")
+    public ResponseEntity<?> listBorrowedBooks() {
+
+        // 1. Get logged-in user email from JWT
+        String email = (String) SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal();
+
+        // 2. Fetch user
+        User user = mongoTemplate.findOne(
+                new Query(Criteria.where("email").is(email)),
+                User.class
+        );
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("User not found");
+        }
+
+        // 3. If no borrowed books
+        if (user.getBorrowedBookIds().isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        // 4. Fetch books by IDs
+        List<Book> books = bookRepository.findAllById(
+                user.getBorrowedBookIds()
+        );
+
+        return ResponseEntity.ok(books);
     }
 
 }
